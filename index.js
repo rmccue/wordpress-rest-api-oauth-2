@@ -29,12 +29,10 @@ var _class = function () {
 		this.url = config.rest_url ? config.rest_url : config.url + 'wp-json';
 		this.url = this.url.replace(/\/$/, '');
 		this.credentials = config.credentials;
+		this.scope = config.scope || null;
 
-		if (this.credentials) {
-			this.oauth = new _oauth2.default({
-				consumer: config.credentials.client,
-				signature_method: 'HMAC-SHA1'
-			});
+		if (!this.credentials.type) {
+			this.credentials.type = this.credentials.client.secret ? 'code' : 'token';
 		}
 		this.config = config;
 	}
@@ -57,7 +55,7 @@ var _class = function () {
 					throw { message: 'Broker error: ' + data.message, code: data.type };
 				}
 				_this.config.credentials.client = {
-					public: data.client_token,
+					id: data.client_token,
 					secret: data.client_secret
 				};
 
@@ -65,43 +63,42 @@ var _class = function () {
 			});
 		}
 	}, {
-		key: 'getRequestToken',
-		value: function getRequestToken() {
-			var _this2 = this;
-
+		key: 'getRedirectURL',
+		value: function getRedirectURL() {
 			if (!this.config.callbackURL) {
 				throw new Error('Config does not include a callbackURL value.');
 			}
-			return this.post(this.config.url + 'oauth1/request', {
-				callback_url: this.config.callbackURL
-			}).then(function (data) {
-				var redirectURL = _this2.config.url + 'oauth1/authorize?' + _qs2.default.stringify({
-					oauth_token: data.oauth_token,
-					oauth_callback: _this2.config.callbackURL
-				});
 
-				_this2.config.credentials.token = {
-					secret: data.oauth_token_secret
-				};
-
-				return { redirectURL: redirectURL, token: data };
-			});
+			var args = {
+				response_type: this.credentials.type,
+				client_id: this.credentials.client.id,
+				redirect_uri: this.config.callbackURL
+			};
+			if (this.scope) {
+				args.scope = this.scope;
+			}
+			return this.config.url + 'wp-login.php?action=oauth2_authorize&' + _qs2.default.stringify(args);
 		}
 	}, {
 		key: 'getAccessToken',
 		value: function getAccessToken(oauthVerifier) {
-			var _this3 = this;
+			var _this2 = this;
 
-			return this.post(this.config.url + 'oauth1/access', {
+			return this.post(this.config.url + 'oauth2/access', {
 				oauth_verifier: oauthVerifier
 			}).then(function (data) {
-				_this3.config.credentials.token = {
+				_this2.config.credentials.token = {
 					public: data.oauth_token,
 					secret: data.oauth_token_secret
 				};
 
-				return _this3.config.credentials.token;
+				return _this2.config.credentials.token;
 			});
+		}
+	}, {
+		key: 'getAuthorizationHeader',
+		value: function getAuthorizationHeader() {
+			return { Authorization: 'Bearer ' + this.config.credentials.token.public };
 		}
 	}, {
 		key: 'authorize',
@@ -111,6 +108,11 @@ var _class = function () {
 			var savedCredentials = window.localStorage.getItem('requestTokenCredentials');
 			if (window.location.href.indexOf('?')) {
 				args = _qs2.default.parse(window.location.href.split('?')[1]);
+			}
+
+			// Parse implicit token passed in fragment
+			if (window.location.href.indexOf('#') && this.config.credentials.type === 'token') {
+				args = _qs2.default.parse(window.location.hash.substring(1));
 			}
 
 			if (!this.config.credentials.client) {
@@ -126,14 +128,20 @@ var _class = function () {
 				window.localStorage.removeItem('requestTokenCredentials');
 			}
 
-			if (!this.config.credentials.token) {
-				return this.getRequestToken().then(this.authorize.bind(this));
-			} else if (!this.config.credentials.token.public && !savedCredentials) {
+			if (args.access_token) {
+				this.config.credentials.token = {
+					public: args.access_token
+				};
+				return Promise.resolve(this.config.credentials.token);
+			}
+
+			if (!this.config.credentials.token && !savedCredentials) {
+				console.log(savedCredentials);
 				window.localStorage.setItem('requestTokenCredentials', JSON.stringify(this.config.credentials));
-				window.location = next.redirectURL;
+				window.location = this.getRedirectURL();
 				throw 'Redirect to authrization page...';
-			} else if (!this.config.credentials.token.public && args.oauth_token) {
-				this.config.credentials.token.public = args.oauth_token;
+			} else if (!this.config.credentials.token && args.access_token) {
+				this.config.credentials.token.public = args.access_token;
 				return this.getAccessToken(args.oauth_verifier);
 			}
 		}
@@ -187,44 +195,12 @@ var _class = function () {
 			}
 
 			if (method === 'GET' && data) {
-				// must be decoded before being passed to ouath
 				url += '?' + decodeURIComponent(_qs2.default.stringify(data));
 				data = null;
 			}
 
-			var oauthData = null;
-
-			if (data) {
-				oauthData = {};
-				Object.keys(data).forEach(function (key) {
-					var value = data[key];
-					if (Array.isArray(value)) {
-						value.forEach(function (val, index) {
-							return oauthData[key + '[' + index + ']'] = val;
-						});
-					} else if ((typeof value === 'undefined' ? 'undefined' : _typeof(value)) === 'object') {
-						for (var property in value) {
-							if (value.hasOwnProperty(property)) {
-								oauthData[key + '[' + property + ']'] = value[property];
-							}
-						}
-					} else {
-						oauthData[key] = value;
-					}
-				});
-			}
-
-			if (this.oauth) {
-				var oauthData = this.oauth.authorize({
-					method: method,
-					url: url,
-					data: oauthData
-				}, this.config.credentials.token ? this.config.credentials.token : null);
-			}
-
 			var headers = {
-				Accept: 'application/json',
-				'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+				Accept: 'application/json'
 			};
 
 			var requestUrls = [this.config.url + 'oauth1/request'];
@@ -232,9 +208,10 @@ var _class = function () {
 			/**
     * Only attach the oauth headers if we have a request token, or it is a request to the `oauth/request` endpoint.
     */
-			if (this.oauth && this.config.credentials.token || requestUrls.indexOf(url) > -1) {
-				headers = _extends({}, headers, this.oauth.toHeader(oauthData));
+			if (this.config.credentials.token || requestUrls.indexOf(url) > -1) {
+				headers = _extends({}, headers, this.getAuthorizationHeader());
 			}
+			console.log(this.config, headers);
 
 			return fetch(url, {
 				method: method,
@@ -258,7 +235,7 @@ var _class = function () {
 					if (response.status >= 300) {
 						throw json;
 					} else {
-						return json;
+						return response;
 					}
 				});
 			});
