@@ -1,5 +1,5 @@
 {
-  "name": "wordpress-rest-api-oauth-1",
+  "name": "wordpress-rest-api-oauth-2",
   "version": "1.1.6",
   "description": "WordPrest REST API OAuth 1 Client",
   "main": "index.js",
@@ -9,12 +9,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/WP-API/wordpress-rest-api-oauth-1.git"
+    "url": "https://github.com/WP-API/wordpress-rest-api-oauth-2.git"
   },
   "author": "joehoyle",
   "license": "MIT",
   "dependencies": {
-    "oauth-1.0a": "^1.0.1",
     "qs": "^6.2.0"
   },
   "devDependencies": {
