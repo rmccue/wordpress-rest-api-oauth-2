@@ -175,34 +175,12 @@ export default class {
 		if ( this.config.credentials.token || requestUrls.indexOf( url ) > -1 ) {
 			headers = {...headers, ...this.getAuthorizationHeader()}
 		}
-		console.log( this.config, headers )
 
 		return fetch( url, {
 			method: method,
 			headers: headers,
 			mode: 'cors',
 			body: ['GET','HEAD'].indexOf( method ) > -1 ? null : qs.stringify( data )
-		} )
-		.then( response => {
-			if ( response.headers.get( 'Content-Type' ) && response.headers.get( 'Content-Type' ).indexOf( 'x-www-form-urlencoded' ) > -1 ) {
-				return response.text().then( text => {
-					return qs.parse( text )
-				})
-			}
-			return response.text().then( text => {
-
-				try {
-					var json = JSON.parse( text )
-				} catch( e ) {
-					throw { message: text, code: response.status }
-				}
-
-				if ( response.status >= 300) {
-					throw json
-				} else {
-					return response
-				}
-			})
 		} )
 	}
 }
