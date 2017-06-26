@@ -149,7 +149,7 @@ export default class {
 		return this.request( 'POST', url, data )
 	}
 
-	del( url, data, callback ) {
+	del( url, data ) {
 		return this.request( 'DELETE', url, data )
 	}
 

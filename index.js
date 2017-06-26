@@ -178,7 +178,7 @@ var _class = function () {
 		}
 	}, {
 		key: 'del',
-		value: function del(url, data, callback) {
+		value: function del(url, data) {
 			return this.request('DELETE', url, data);
 		}
 	}, {
