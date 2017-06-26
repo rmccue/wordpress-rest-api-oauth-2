@@ -22,7 +22,7 @@ var _class = function () {
 
 		this.url = config.rest_url ? config.rest_url : config.url + 'wp-json';
 		this.url = this.url.replace(/\/$/, '');
-		this.credentials = config.credentials;
+		this.credentials = Object.assign({}, config.credentials);
 		this.scope = config.scope || null;
 
 		if (!this.credentials.type) {
@@ -40,7 +40,7 @@ var _class = function () {
 				throw new Error('Config does not include a brokerCredentials value.');
 			}
 
-			this.config.credentials.client = this.config.brokerCredentials.client;
+			this.credentials.client = this.config.brokerCredentials.client;
 			return this.post(this.config.brokerURL + 'broker/connect', {
 				server_url: this.config.url
 			}).then(function (data) {
@@ -48,7 +48,7 @@ var _class = function () {
 				if (data.status && data.status === 'error') {
 					throw { message: 'Broker error: ' + data.message, code: data.type };
 				}
-				_this.config.credentials.client = {
+				_this.credentials.client = {
 					id: data.client_token,
 					secret: data.client_secret
 				};
@@ -81,18 +81,18 @@ var _class = function () {
 			return this.post(this.config.url + 'oauth2/access', {
 				oauth_verifier: oauthVerifier
 			}).then(function (data) {
-				_this2.config.credentials.token = {
+				_this2.credentials.token = {
 					public: data.oauth_token,
 					secret: data.oauth_token_secret
 				};
 
-				return _this2.config.credentials.token;
+				return _this2.credentials.token;
 			});
 		}
 	}, {
 		key: 'getAuthorizationHeader',
 		value: function getAuthorizationHeader() {
-			return { Authorization: 'Bearer ' + this.config.credentials.token.public };
+			return { Authorization: 'Bearer ' + this.credentials.token.public };
 		}
 	}, {
 		key: 'authorize',
@@ -105,62 +105,62 @@ var _class = function () {
 			}
 
 			// Parse implicit token passed in fragment
-			if (window.location.href.indexOf('#') && this.config.credentials.type === 'token') {
+			if (window.location.href.indexOf('#') && this.credentials.type === 'token') {
 				args = _qs2.default.parse(window.location.hash.substring(1));
 			}
 
-			if (!this.config.credentials.client) {
+			if (!this.credentials.client) {
 				return this.getConsumerToken().then(this.authorize.bind(this));
 			}
 
-			if (this.config.credentials.token && this.config.credentials.token.public) {
+			if (this.credentials.token && this.credentials.token.public) {
 				return Promise.resolve("Success");
 			}
 
 			if (savedCredentials) {
-				this.config.credentials = JSON.parse(savedCredentials);
+				this.credentials = JSON.parse(savedCredentials);
 				window.localStorage.removeItem('requestTokenCredentials');
 			}
 
 			if (args.access_token) {
-				this.config.credentials.token = {
+				this.credentials.token = {
 					public: args.access_token
 				};
-				return Promise.resolve(this.config.credentials.token);
+				return Promise.resolve(this.credentials.token);
 			}
 
-			if (!this.config.credentials.token && !savedCredentials) {
+			if (!this.credentials.token && !savedCredentials) {
 				console.log(savedCredentials);
-				window.localStorage.setItem('requestTokenCredentials', JSON.stringify(this.config.credentials));
+				window.localStorage.setItem('requestTokenCredentials', JSON.stringify(this.credentials));
 				window.location = this.getRedirectURL();
 				throw 'Redirect to authrization page...';
-			} else if (!this.config.credentials.token && args.access_token) {
-				this.config.credentials.token.public = args.access_token;
+			} else if (!this.credentials.token && args.access_token) {
+				this.credentials.token.public = args.access_token;
 				return this.getAccessToken(args.oauth_verifier);
 			}
 		}
 	}, {
 		key: 'saveCredentials',
 		value: function saveCredentials() {
-			window.localStorage.setItem('tokenCredentials', JSON.stringify(this.config.credentials));
+			window.localStorage.setItem('tokenCredentials', JSON.stringify(this.credentials));
 		}
 	}, {
 		key: 'removeCredentials',
 		value: function removeCredentials() {
-			delete this.config.credentials.token;
+			delete this.credentials.token;
 			window.localStorage.removeItem('tokenCredentials');
 		}
 	}, {
 		key: 'hasCredentials',
 		value: function hasCredentials() {
-			return this.config.credentials && this.config.credentials.client && this.config.credentials.client.public && this.config.credentials.client.secret && this.config.credentials.token && this.config.credentials.token.public && this.config.credentials.token.secret;
+			return this.credentials && this.credentials.client && this.credentials.client.public && this.credentials.client.secret && this.credentials.token && this.credentials.token.public && this.credentials.token.secret;
 		}
 	}, {
 		key: 'restoreCredentials',
 		value: function restoreCredentials() {
 			var savedCredentials = window.localStorage.getItem('tokenCredentials');
 			if (savedCredentials) {
-				this.config.credentials = JSON.parse(savedCredentials);
+				this.credentials = JSON.parse(savedCredentials);
 			}
 			return this;
 		}
@@ -202,7 +202,7 @@ var _class = function () {
 			/**
     * Only attach the oauth headers if we have a request token, or it is a request to the `oauth/request` endpoint.
     */
-			if (this.config.credentials.token || requestUrls.indexOf(url) > -1) {
+			if (this.credentials.token || requestUrls.indexOf(url) > -1) {
 				headers = _extends({}, headers, this.getAuthorizationHeader());
 			}
 
