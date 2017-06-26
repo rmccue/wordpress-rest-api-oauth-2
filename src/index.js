@@ -52,12 +52,15 @@ export default class {
 	}
 
 	getAccessToken( oauthVerifier ) {
-		return this.post( `${this.config.url}oauth2/access`, {
-			oauth_verifier: oauthVerifier,
-		} ).then( data => {
+		const args = {
+			grant_type: 'authorization_code',
+			client_id: this.credentials.client.id,
+			redirect_uri: this.config.callbackURL,
+			code: oauthVerifier,
+		}
+		return this.post( `${this.url}/oauth2/access_token`, args ).then( data => {
 			this.credentials.token = {
-				public: data.oauth_token,
-				secret: data.oauth_token_secret,
+				public: data.access_token,
 			}
 
 			return this.credentials.token
@@ -106,9 +109,8 @@ export default class {
 			window.localStorage.setItem( 'requestTokenCredentials', JSON.stringify( this.credentials ) )
 			window.location = this.getRedirectURL()
 			throw 'Redirect to authrization page...'
-		} else if ( ! this.credentials.token && args.access_token ) {
-			this.credentials.token.public = args.access_token
-			return this.getAccessToken( args.oauth_verifier )
+		} else if ( ! this.credentials.token && args.code ) {
+			return this.getAccessToken( args.code )
 		}
 	}
 
