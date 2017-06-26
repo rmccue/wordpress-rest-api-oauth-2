@@ -84,7 +84,17 @@ var _class = function () {
 				redirect_uri: this.config.callbackURL,
 				code: oauthVerifier
 			};
-			return this.post(this.url + '/oauth2/access_token', args).then(function (data) {
+			var opts = {
+				method: 'POST',
+				mode: 'cors',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded'
+				},
+				body: _qs2.default.stringify(args)
+			};
+			return fetch(this.url + '/oauth2/access_token', opts).then(function (resp) {
+				return resp.json();
+			}).then(function (data) {
 				_this2.credentials.token = {
 					public: data.access_token
 				};

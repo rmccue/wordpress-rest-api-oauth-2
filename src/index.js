@@ -58,7 +58,15 @@ export default class {
 			redirect_uri: this.config.callbackURL,
 			code: oauthVerifier,
 		}
-		return this.post( `${this.url}/oauth2/access_token`, args ).then( data => {
+		const opts = {
+			method: 'POST',
+			mode: 'cors',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+			},
+			body: qs.stringify( args ),
+		}
+		return fetch( `${this.url}/oauth2/access_token`, opts ).then( resp => resp.json() ).then( data => {
 			this.credentials.token = {
 				public: data.access_token,
 			}
