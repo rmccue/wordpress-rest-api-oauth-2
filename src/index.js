@@ -76,6 +76,10 @@ export default class {
 	}
 
 	getAuthorizationHeader() {
+		if ( ! this.credentials.token ) {
+			return {}
+		}
+
 		return { Authorization: `Bearer ${this.credentials.token.public}` }
 	}
 
