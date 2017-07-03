@@ -66,13 +66,18 @@ export default class {
 			},
 			body: qs.stringify( args ),
 		}
-		return fetch( `${this.url}/oauth2/access_token`, opts ).then( resp => resp.json() ).then( data => {
-			this.credentials.token = {
-				public: data.access_token,
-			}
+		return fetch( `${this.url}/oauth2/access_token`, opts ).then( resp => {
+			return resp.json().then( data => {
+				if ( ! resp.ok ) {
+					throw new Error( data.message )
+				}
+				this.credentials.token = {
+					public: data.access_token,
+				}
 
-			return this.credentials.token
-		} )
+				return this.credentials.token
+			})
+		})
 	}
 
 	getAuthorizationHeader() {
