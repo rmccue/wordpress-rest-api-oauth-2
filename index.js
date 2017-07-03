@@ -93,18 +93,25 @@ var _class = function () {
 				body: _qs2.default.stringify(args)
 			};
 			return fetch(this.url + '/oauth2/access_token', opts).then(function (resp) {
-				return resp.json();
-			}).then(function (data) {
-				_this2.credentials.token = {
-					public: data.access_token
-				};
+				return resp.json().then(function (data) {
+					if (!resp.ok) {
+						throw new Error(data.message);
+					}
+					_this2.credentials.token = {
+						public: data.access_token
+					};
 
-				return _this2.credentials.token;
+					return _this2.credentials.token;
+				});
 			});
 		}
 	}, {
 		key: 'getAuthorizationHeader',
 		value: function getAuthorizationHeader() {
+			if (!this.credentials.token) {
+				return {};
+			}
+
 			return { Authorization: 'Bearer ' + this.credentials.token.public };
 		}
 	}, {
@@ -126,8 +133,13 @@ var _class = function () {
 				return this.getConsumerToken().then(this.authorize.bind(this));
 			}
 
-			if (this.credentials.token && this.credentials.token.public) {
-				return Promise.resolve("Success");
+			if (this.credentials.token) {
+				if (this.credentials.token.public) {
+					return Promise.resolve("Success");
+				}
+
+				// We have an invalid token stored
+				return Promise.reject(new Error('invalid_stored_token'));
 			}
 
 			if (savedCredentials) {
@@ -142,14 +154,28 @@ var _class = function () {
 				return Promise.resolve(this.credentials.token);
 			}
 
-			if (!this.credentials.token && !savedCredentials) {
+			// No token yet, and no attempt, so redirect to authorization page.
+			if (!savedCredentials) {
 				console.log(savedCredentials);
 				window.localStorage.setItem('requestTokenCredentials', JSON.stringify(this.credentials));
 				window.location = this.getRedirectURL();
 				throw 'Redirect to authrization page...';
-			} else if (!this.credentials.token && args.code) {
+			}
+
+			// Attempted, and we have a code.
+			if (args.code) {
 				return this.getAccessToken(args.code);
 			}
+
+			// Attempted, and we have an error.
+			if (args.error) {
+				return Promise.reject(new Error(args.error));
+			}
+
+			// Attempted, but no code or error, so user likely manually cancelled the process.
+			// Delete the saved credentials, and try again.
+			this.credentials = Object.assign({}, config.credentials);
+			return this.authorize();
 		}
 	}, {
 		key: 'saveCredentials',
