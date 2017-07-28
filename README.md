@@ -1,11 +1,13 @@
-# WordPress REST API OAuth 1 Client
+# WordPress REST API OAuth 2 Client
 
-JavaScript OAuth 1 Client for the WordPress REST API v2.
+JavaScript OAuth 2 Client for the WordPress REST API v2.
+
+Based on https://github.com/WP-API/wordpress-rest-api-oauth-1
 
 ## Install
 
 ```
-npm install --save wordpress-rest-api-oauth-1
+npm install --save wordpress-rest-api-oauth-2
 ```
 
 ## Configuration
@@ -13,24 +15,24 @@ npm install --save wordpress-rest-api-oauth-1
 ### Without Authentication
 
 ```JS
-import api from 'wordpress-rest-api-oauth-1'
+import api from 'wordpress-rest-api-oauth-2'
 
 const demoApi = new api({
 	url: 'https://demo.wp-api.org/'
 })
 ```
-### Using OAuth 1 Directly
+### Using OAuth 2 Directly
 
-To communication and authenticate using OAuth 1 with your WordPress site directly:
+To communication and authenticate using OAuth 2 with your WordPress site directly:
 
 ```JS
-import api from 'wordpress-rest-api-oauth-1'
+import api from 'wordpress-rest-api-oauth-2'
 
 const demoApi = new api({
 	url: 'https://demo.wp-api.org/',
 	credentials: {
 		client: {
-			public: 'xxxxxx',
+			id: 'xxxxxx',
 			secret: 'xxxxxxxxxxxxxxxxxxx'
 		}
 	}
@@ -39,23 +41,25 @@ const demoApi = new api({
 
 ### Using the WordPress Authentication Broker
 
+**WARNING: NOT YET SUPPORTED**
+
 To establish a connection to a WordPress site that accepts the [WordPress REST API Broker](https://apps.wp-api.org/):
 
 ```JS
-import api from 'wordpress-rest-api-oauth-1'
+import api from 'wordpress-rest-api-oauth-2'
 
 const demoApi = new api({
 	url: 'https://demo.wp-api.org/',
 	brokerCredentials: {
 		client: {
-			public: 'xxxxxx',
+			id: 'xxxxxx',
 			secret: 'xxxxxxxxxxxxxxxxxxx'
 		}
 	}
 })
 
 // Get OAuth client tokens for the specified site. This is not needed if using `authorize()`.
-demoApi.getConsumerToken().then( token => {
+demoApi.getClientCredentials().then( token => {
 	console.log( token )
 })
 ```
@@ -80,16 +84,17 @@ demoApi.authorize().then( function() {
 
 ```JS
 // Get client tokens from the broker (optional)
-demoApi.getConsumerToken().then( ... )
+demoApi.getClientCredentials().then( ... )
 
-// Get a request token
-demo.getRequestToken() )
-	.then( token => {
-		// handle the user authorize redirect with token.redirectURL
-	})
+// Optionally create state to avoid CSRF and store
+const state = createRandomState()
+localStorage.setItem( 'oauthState', state )
 
-// Exchange for an access token
-demo.getAccessToken( oAuthVerifier )
+// Send user to authorisation page...
+window.location = demoApi.getRedirectURL( state )
+
+// After return, exchange code for access token (after checking state)
+demo.getAccessToken( code )
 	.then( token => {
 		// save the token to localStorage etc.
 	})
@@ -97,8 +102,19 @@ demo.getAccessToken( oAuthVerifier )
 
 #### Make API Requests
 
-You can make API requests directly with this library for both authenticated requests and anonymous.
+The recommended way to make requests is to use the `API.fetch()` method just as you would use the `fetch()` function. This method does a few things for you:
 
+* Resolves URLs relative to the API URL.
+* Automatically adds the Authorization header
+
+Use it the same way you'd use `fetch()`
+```js
+demoApi.fetch( 'wp/v2/posts' )
+	.then( resp => resp.json() )
+	.then( data => console.log( data ) )
+```
+
+You can also use the high-level helpers:
 
 ```JS
 demoApi.get( '/wp/v2/posts', { per_page: 5 } ).then( posts => {
