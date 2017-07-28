@@ -13,7 +13,7 @@ export default class {
 		this.config = config
 	}
 
-	getConsumerToken() {
+	getClientCredentials() {
 		if ( ! this.config.brokerCredentials ) {
 			throw new Error( 'Config does not include a brokerCredentials value.' )
 		}
@@ -102,7 +102,7 @@ export default class {
 		}
 
 		if ( ! this.credentials.client ) {
-			return this.getConsumerToken().then( this.authorize.bind( this ) )
+			return this.getClientCredentials().then( this.authorize.bind( this ) )
 		}
 
 		if ( this.credentials.token ) {
