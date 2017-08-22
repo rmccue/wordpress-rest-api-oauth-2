@@ -69,6 +69,13 @@ export default class {
 			},
 			body: qs.stringify( args ),
 		}
+
+		if ( 'secret' in this.credentials.client ) {
+			const encodedAuth = btoa( this.credentials.client.id + ':' + this.credentials.client.secret )
+			opts.headers.Authorization = `Basic ${encodedAuth}`
+			delete args.client_id
+		}
+
 		return fetch( `${this.url}/oauth2/access_token`, opts ).then( resp => {
 			return resp.json().then( data => {
 				if ( ! resp.ok ) {
