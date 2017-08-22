@@ -230,12 +230,14 @@ export default class {
 			headers = {...headers, ...this.getAuthorizationHeader()}
 		}
 
-		return fetch( url, {
-			method: method,
-			headers: headers,
+		const opts = {
+			method,
+			headers,
 			mode: 'cors',
 			body: ['GET','HEAD'].indexOf( method ) > -1 ? null : qs.stringify( data )
-		} )
+		}
+
+		return fetch( url, opts ).then( parseResponse )
 	}
 
 	fetch( url, options ) {
@@ -256,3 +258,18 @@ export default class {
 		return fetch( absUrl, actualOptions )
 	}
 }
+
+export const parseResponse = resp => resp.json().then( data => {
+	if ( resp.ok ) {
+		Object.defineProperty( data, 'response', {
+			get: () => resp,
+		} );
+		return data;
+	}
+
+	// Build an error
+	const err = new Error( data.message )
+	err.code = data.code
+	err.data = data.data
+	throw err
+} )
