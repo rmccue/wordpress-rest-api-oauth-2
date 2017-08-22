@@ -165,7 +165,10 @@ export default class {
 
 		// Attempted, but no code or error, so user likely manually cancelled the process.
 		// Delete the saved credentials, and try again.
-		this.credentials = Object.assign( {}, config.credentials )
+		this.credentials = Object.assign( {}, this.config.credentials )
+		if ( ! this.credentials.type ) {
+			this.credentials.type = this.credentials.client.secret ? 'code' : 'token'
+		}
 		return this.authorize()
 	}
 
