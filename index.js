@@ -311,9 +311,12 @@ exports.default = _class;
 var parseResponse = exports.parseResponse = function parseResponse(resp) {
 	return resp.json().then(function (data) {
 		if (resp.ok) {
-			Object.defineProperty(data, 'response', {
+			// Expose response via a getter, which avoids copying.
+			Object.defineProperty(data, 'getResponse', {
 				get: function get() {
-					return resp;
+					return function () {
+						return resp;
+					};
 				}
 			});
 			return data;

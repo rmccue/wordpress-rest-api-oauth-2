@@ -261,8 +261,9 @@ export default class {
 
 export const parseResponse = resp => resp.json().then( data => {
 	if ( resp.ok ) {
-		Object.defineProperty( data, 'response', {
-			get: () => resp,
+		// Expose response via a getter, which avoids copying.
+		Object.defineProperty( data, 'getResponse', {
+			get: () => () => resp,
 		} );
 		return data;
 	}
