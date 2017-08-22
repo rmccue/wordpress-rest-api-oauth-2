@@ -102,13 +102,22 @@ export default class {
 
 		var args = {}
 		var savedCredentials = window.localStorage.getItem( 'requestTokenCredentials' )
-		if ( window.location.href.indexOf( '?' ) ) {
-			args = qs.parse( window.location.href.split('?')[1] )
-		}
 
 		// Parse implicit token passed in fragment
-		if ( window.location.href.indexOf( '#' ) && this.credentials.type === 'token' ) {
-			args = qs.parse( window.location.hash.substring( 1 ) )
+		if ( savedCredentials ) {
+			if ( window.location.href.indexOf( '?' ) ) {
+				args = qs.parse( window.location.href.split('?')[1] )
+			}
+			if ( window.location.href.indexOf( '#' ) && this.credentials.type === 'token' ) {
+				args = qs.parse( window.location.hash.substring( 1 ) )
+
+				// Remove the hash if we can.
+				if ( window.history.pushState ) {
+					window.history.pushState( null, null, window.location.href.split('#')[0] )
+				} else {
+					window.location.hash = ''
+				}
+			}
 		}
 
 		if ( ! this.credentials.client ) {
