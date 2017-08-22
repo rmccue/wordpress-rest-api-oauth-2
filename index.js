@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
 	value: true
 });
+exports.parseResponse = undefined;
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
@@ -32,8 +33,8 @@ var _class = function () {
 	}
 
 	_createClass(_class, [{
-		key: 'getConsumerToken',
-		value: function getConsumerToken() {
+		key: 'getClientCredentials',
+		value: function getClientCredentials() {
 			var _this = this;
 
 			if (!this.config.brokerCredentials) {
@@ -58,7 +59,7 @@ var _class = function () {
 		}
 	}, {
 		key: 'getRedirectURL',
-		value: function getRedirectURL() {
+		value: function getRedirectURL(state) {
 			if (!this.config.callbackURL) {
 				throw new Error('Config does not include a callbackURL value.');
 			}
@@ -71,18 +72,21 @@ var _class = function () {
 			if (this.scope) {
 				args.scope = this.scope;
 			}
-			return this.config.url + 'wp-login.php?action=oauth2_authorize&' + _qs2.default.stringify(args);
+			if (state) {
+				args.state = state;
+			}
+			return this.url + '/oauth2/authorize?' + _qs2.default.stringify(args);
 		}
 	}, {
 		key: 'getAccessToken',
-		value: function getAccessToken(oauthVerifier) {
+		value: function getAccessToken(code) {
 			var _this2 = this;
 
 			var args = {
 				grant_type: 'authorization_code',
 				client_id: this.credentials.client.id,
 				redirect_uri: this.config.callbackURL,
-				code: oauthVerifier
+				code: code
 			};
 			var opts = {
 				method: 'POST',
@@ -92,6 +96,13 @@ var _class = function () {
 				},
 				body: _qs2.default.stringify(args)
 			};
+
+			if ('secret' in this.credentials.client) {
+				var encodedAuth = btoa(this.credentials.client.id + ':' + this.credentials.client.secret);
+				opts.headers.Authorization = 'Basic ' + encodedAuth;
+				delete args.client_id;
+			}
+
 			return fetch(this.url + '/oauth2/access_token', opts).then(function (resp) {
 				return resp.json().then(function (data) {
 					if (!resp.ok) {
@@ -120,17 +131,26 @@ var _class = function () {
 
 			var args = {};
 			var savedCredentials = window.localStorage.getItem('requestTokenCredentials');
-			if (window.location.href.indexOf('?')) {
-				args = _qs2.default.parse(window.location.href.split('?')[1]);
-			}
 
 			// Parse implicit token passed in fragment
-			if (window.location.href.indexOf('#') && this.credentials.type === 'token') {
-				args = _qs2.default.parse(window.location.hash.substring(1));
+			if (savedCredentials) {
+				if (window.location.href.indexOf('?')) {
+					args = _qs2.default.parse(window.location.href.split('?')[1]);
+				}
+				if (window.location.href.indexOf('#') && this.credentials.type === 'token') {
+					args = _qs2.default.parse(window.location.hash.substring(1));
+
+					// Remove the hash if we can.
+					if (window.history.pushState) {
+						window.history.pushState(null, null, window.location.href.split('#')[0]);
+					} else {
+						window.location.hash = '';
+					}
+				}
 			}
 
 			if (!this.credentials.client) {
-				return this.getConsumerToken().then(this.authorize.bind(this));
+				return this.getClientCredentials().then(this.authorize.bind(this));
 			}
 
 			if (this.credentials.token) {
@@ -174,7 +194,10 @@ var _class = function () {
 
 			// Attempted, but no code or error, so user likely manually cancelled the process.
 			// Delete the saved credentials, and try again.
-			this.credentials = Object.assign({}, config.credentials);
+			this.credentials = Object.assign({}, this.config.credentials);
+			if (!this.credentials.type) {
+				this.credentials.type = this.credentials.client.secret ? 'code' : 'token';
+			}
 			return this.authorize();
 		}
 	}, {
@@ -191,7 +214,7 @@ var _class = function () {
 	}, {
 		key: 'hasCredentials',
 		value: function hasCredentials() {
-			return this.credentials && this.credentials.client && this.credentials.client.public && this.credentials.client.secret && this.credentials.token && this.credentials.token.public && this.credentials.token.secret;
+			return this.credentials && this.credentials.client && this.credentials.client.id && this.credentials.token && this.credentials.token.public;
 		}
 	}, {
 		key: 'restoreCredentials',
@@ -233,27 +256,73 @@ var _class = function () {
 
 			var headers = {
 				Accept: 'application/json'
-			};
 
-			var requestUrls = [this.config.url + 'oauth1/request'];
-
-			/**
-    * Only attach the oauth headers if we have a request token, or it is a request to the `oauth/request` endpoint.
-    */
-			if (this.credentials.token || requestUrls.indexOf(url) > -1) {
+				/**
+     * Only attach the oauth headers if we have a request token
+     */
+			};if (this.credentials.token) {
 				headers = _extends({}, headers, this.getAuthorizationHeader());
 			}
 
-			return fetch(url, {
+			var opts = {
 				method: method,
 				headers: headers,
 				mode: 'cors',
 				body: ['GET', 'HEAD'].indexOf(method) > -1 ? null : _qs2.default.stringify(data)
-			});
+			};
+
+			return fetch(url, opts).then(parseResponse);
 		}
+	}, {
+		key: 'fetch',
+		value: function (_fetch) {
+			function fetch(_x, _x2) {
+				return _fetch.apply(this, arguments);
+			}
+
+			fetch.toString = function () {
+				return _fetch.toString();
+			};
+
+			return fetch;
+		}(function (url, options) {
+			// Make URL absolute
+			var relUrl = url[0] === '/' ? url.substring(1) : url;
+			var absUrl = new URL(relUrl, this.url + '/');
+
+			// Clone options
+			var actualOptions = _extends({ headers: {} }, options);
+
+			/**
+    * Only attach the oauth headers if we have a request token
+    */
+			if (this.credentials.token) {
+				actualOptions.headers = _extends({}, actualOptions.headers, this.getAuthorizationHeader());
+			}
+
+			return fetch(absUrl, actualOptions);
+		})
 	}]);
 
 	return _class;
 }();
 
 exports.default = _class;
+var parseResponse = exports.parseResponse = function parseResponse(resp) {
+	return resp.json().then(function (data) {
+		if (resp.ok) {
+			Object.defineProperty(data, 'response', {
+				get: function get() {
+					return resp;
+				}
+			});
+			return data;
+		}
+
+		// Build an error
+		var err = new Error(data.message);
+		err.code = data.code;
+		err.data = data.data;
+		throw err;
+	});
+};
