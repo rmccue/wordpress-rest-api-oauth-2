@@ -237,4 +237,22 @@ export default class {
 			body: ['GET','HEAD'].indexOf( method ) > -1 ? null : qs.stringify( data )
 		} )
 	}
+
+	fetch( url, options ) {
+		// Make URL absolute
+		const relUrl = url[0] === '/' ? url.substring( 1 ) : url
+		const absUrl = new URL( relUrl, this.url + '/' )
+
+		// Clone options
+		const actualOptions = { headers: {}, ...options }
+
+		/**
+		 * Only attach the oauth headers if we have a request token
+		 */
+		if ( this.credentials.token ) {
+			actualOptions.headers = {...actualOptions.headers, ...this.getAuthorizationHeader()}
+		}
+
+		return fetch( absUrl, actualOptions )
+	}
 }
