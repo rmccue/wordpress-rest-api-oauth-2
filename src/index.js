@@ -184,11 +184,9 @@ export default class {
 	hasCredentials() {
 		return this.credentials
 			&& this.credentials.client
-			&& this.credentials.client.public
-			&& this.credentials.client.secret
+			&& this.credentials.client.id
 			&& this.credentials.token
 			&& this.credentials.token.public
-			&& this.credentials.token.secret
 	}
 
 	restoreCredentials() {
