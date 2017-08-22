@@ -223,14 +223,10 @@ export default class {
 			Accept: 'application/json'
 		}
 
-		const requestUrls = [
-			`${this.config.url}oauth1/request`
-		]
-
 		/**
-		 * Only attach the oauth headers if we have a request token, or it is a request to the `oauth/request` endpoint.
+		 * Only attach the oauth headers if we have a request token
 		 */
-		if ( this.credentials.token || requestUrls.indexOf( url ) > -1 ) {
+		if ( this.credentials.token ) {
 			headers = {...headers, ...this.getAuthorizationHeader()}
 		}
 
