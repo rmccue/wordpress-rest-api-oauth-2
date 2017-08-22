@@ -35,7 +35,7 @@ export default class {
 		} )
 	}
 
-	getRedirectURL() {
+	getRedirectURL( state ) {
 		if ( ! this.config.callbackURL ) {
 			throw new Error( 'Config does not include a callbackURL value.' )
 		}
@@ -48,15 +48,18 @@ export default class {
 		if ( this.scope ) {
 			args.scope = this.scope
 		}
-		return `${this.config.url}wp-login.php?action=oauth2_authorize&${qs.stringify(args)}`
+		if ( state ) {
+			args.state = state
+		}
+		return `${this.url}/oauth2/authorize?${qs.stringify(args)}`
 	}
 
-	getAccessToken( oauthVerifier ) {
+	getAccessToken( code ) {
 		const args = {
 			grant_type: 'authorization_code',
 			client_id: this.credentials.client.id,
 			redirect_uri: this.config.callbackURL,
-			code: oauthVerifier,
+			code,
 		}
 		const opts = {
 			method: 'POST',
