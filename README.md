@@ -68,7 +68,7 @@ demoApi.getClientCredentials().then( token => {
 
 #### Authorize / OAuth Flow
 
-There is two ways to get authentication tokens, one "high level" function, or you can implement your own flow using the underlaying function.
+There is two ways to get authentication tokens, one "high level" function, or you can implement your own flow using the underlying function.
 
 ##### The Quick Way
 
@@ -113,6 +113,21 @@ demoApi.fetch( 'wp/v2/posts' )
 	.then( resp => resp.json() )
 	.then( data => console.log( data ) )
 ```
+
+The library can also parse the response for you and automatically throw errors:
+
+```js
+import api, { parseResponse } from 'wordpress-rest-api-oauth-2';
+
+// ...
+
+demoApi.fetch( '/wp/v2/posts' )
+	.then( parseResponse )
+	.then( data => console.log( data ) )
+	.catch( err => console.warn( err ) )
+```
+
+(If you need to access the underlying HTTP response data, use `data.getResponse()` in your `.then` callback.)
 
 You can also use the high-level helpers:
 
