@@ -3,7 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
 	value: true
 });
-exports.parseResponse = undefined;
+exports.discover = exports.parseResponse = undefined;
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
@@ -327,5 +327,45 @@ var parseResponse = exports.parseResponse = function parseResponse(resp) {
 		err.code = data.code;
 		err.data = data.data;
 		throw err;
+	});
+};
+
+/**
+ * A manifest object representing a site.
+ *
+ * @typedef {object} Manifest
+ * @property {string} url - Root URL for the REST API
+ * @property {object} authentication - Map of authentication type to authentication details for available auth.
+ * @property {string[]} namespaces - Available namespaces.
+ * @property {object} index - Raw index data from the site.
+ */
+
+/**
+ * Discover the REST API from a URL.
+ *
+ * Runs the auto-discovery mechanism, and finds the API index.
+ *
+ * @param {string} url URL to run discovery on.
+ * @return {Promise.<Manifest>} Promise resolving to a Manifest object, or error if API cannot be found.
+ */
+var discover = exports.discover = function discover(url) {
+	var indexUrl = new URL(url);
+	indexUrl.search = '?rest_route=/';
+
+	return fetch(indexUrl).then(function (resp) {
+		if (!resp.ok) {
+			throw new Error('Non-200 from API');
+		}
+
+		return resp.json().then(function (data) {
+			return {
+				url: data.routes['/']._links.self,
+				authentication: data.authentication,
+				namespaces: data.namespaces,
+				index: data
+			};
+		});
+	}).catch(function (e) {
+		throw new Error('Unable to find the REST API');
 	});
 };
