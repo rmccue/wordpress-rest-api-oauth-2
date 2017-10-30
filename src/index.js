@@ -223,6 +223,10 @@ export default class {
 			Accept: 'application/json'
 		}
 
+		if ( method !== 'GET' && method !== 'HEAD' && data ) {
+			headers['Content-Type'] = 'application/x-www-form-urlencoded';
+		}
+
 		/**
 		 * Only attach the oauth headers if we have a request token
 		 */
